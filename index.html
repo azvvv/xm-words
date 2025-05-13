@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背单词应用</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <!-- <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/js-yaml/4.1.0/js-yaml.min.js"></script> -->
+</head>
+<body>
+    <div class="container">
+        <h1>背单词应用</h1>
+        
+        <div class="settings">
+            <div>
+                <label for="wordFile">选择单词库文件 (YAML):</label>
+                <input type="file" id="wordFile" accept=".yaml,.yml">
+            </div>
+            
+            <div>
+                <label for="modeSelect">选择背诵模式:</label>
+                <select id="modeSelect">
+                    <option value="auto">默认模式 (随机选择)</option>
+                    <option value="chToEn">中译英 (完整)</option>
+                    <option value="chToEnPartial">中译英 (部分)</option>
+                    <option value="enToCh">英译中</option>
+                </select>
+            </div>
+
+            <button id="startBtn">开始背诵</button>
+        </div>
+        
+        <div id="wordArea" class="hidden">
+            <div id="progress">单词 <span id="currentIndex">0</span>/<span id="totalWords">0</span></div>
+            <div id="prompt"></div>
+            <div id="input-area">
+                <input type="text" id="userAnswer" placeholder="请输入答案...">
+                <button id="checkBtn">检查</button>
+            </div>
+            <div id="feedback" class="hidden"></div>
+            <div id="nextBtnContainer" class="hidden">
+                <button id="nextBtn">下一个词</button>
+            </div>
+        </div>
+        
+        <div id="resultsArea" class="hidden">
+            <h2>练习完成!</h2>
+            <div id="resultsSummary"></div>
+            <button id="downloadBtn">下载练习结果</button>
+            <button id="restartBtn">重新开始</button>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
