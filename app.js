@@ -5,6 +5,11 @@ let currentMode = 'auto';
 let attemptCount = 0;
 let maxAttempts = 3;
 let results = [];
+// 添加全局变量
+let isMatchingGameActive = false;
+let selectedTerm = null;
+let matchedPairs = 0;
+let totalPairs = 0;
 
 // DOM 元素
 const wordFileInput = document.getElementById('wordFile');
@@ -56,6 +61,40 @@ function parseYamlFile(file) {
 }
 
 // 开始背诵会话
+// 在开始背诵会话函数中添加模式判断
+// function startSession() {
+//     const file = wordFileInput.files[0];
+//     if (!file) {
+//         alert('请先选择一个YAML词库文件');
+//         return;
+//     }
+    
+//     try {
+//         words = await parseYamlFile(file);
+//         currentMode = modeSelect.value;
+        
+//         // 如果选择了单词连连看模式
+//         if (currentMode === 'matching') {
+//             startWordMatchingGame();
+//             return;
+//         }
+        
+//         currentWordIndex = 0;
+//         results = [];
+        
+//         // 开始计时
+//         startTime = new Date();
+        
+//         // 显示词汇区域
+//         wordArea.classList.remove('hidden');
+//         resultsArea.classList.add('hidden');
+        
+//         totalWordsSpan.textContent = words.length;
+//         showCurrentWord();
+//     } catch (error) {
+//         alert(error);
+//     }
+// }
 async function startSession() {
     const file = wordFileInput.files[0];
     if (!file) {
@@ -66,6 +105,11 @@ async function startSession() {
     try {
         words = await parseYamlFile(file);
         currentMode = modeSelect.value;
+        // 如果选择了单词连连看模式
+        if (currentMode === 'matching') {
+            startWordMatchingGame();
+            return;
+        }
         currentWordIndex = 0;
         results = [];
         
@@ -315,3 +359,213 @@ function resetApp() {
     startTime = null;
     endTime = null;
 }
+
+// 单词连连看游戏
+function startWordMatchingGame() {
+    isMatchingGameActive = true;
+    
+    // 隐藏标准单词区域，显示连连看区域
+    wordArea.classList.add('hidden');
+    resultsArea.classList.add('hidden');
+    
+    // 如果连连看区域不存在，创建它
+    let matchingGameArea = document.getElementById('matchingGameArea');
+    if (!matchingGameArea) {
+        matchingGameArea = document.createElement('div');
+        matchingGameArea.id = 'matchingGameArea';
+        document.querySelector('.container').appendChild(matchingGameArea);
+    }
+    
+    matchingGameArea.classList.remove('hidden');
+    
+    // 从词库中选择10个单词（或者少于10个如果词库不够大）
+    const gameSize = Math.min(10, words.length);
+    const gameWords = [];
+    
+    // 随机选择不重复的单词
+    const wordIndices = new Set();
+    while (wordIndices.size < gameSize) {
+        const randomIndex = Math.floor(Math.random() * words.length);
+        wordIndices.add(randomIndex);
+    }
+    
+    // 构建游戏单词数组
+    wordIndices.forEach(index => {
+        gameWords.push(words[index]);
+    });
+    
+    totalPairs = gameWords.length;
+    matchedPairs = 0;
+    
+    // 准备中文和英文术语数组
+    const chineseTerms = gameWords.map(w => ({ id: w[0], text: w[1], matched: false }));
+    const englishTerms = gameWords.map(w => ({ id: w[0], text: w[2], matched: false }));
+    
+    // 随机排序两列
+    shuffleArray(chineseTerms);
+    shuffleArray(englishTerms);
+    
+    // 开始计时
+    startTime = new Date();
+    
+    // 构建游戏UI
+    let gameHTML = `
+        <div class="matching-game-header">
+            <h3>单词连连看</h3>
+            <div class="matching-progress">已匹配: <span id="matchProgress">${matchedPairs}/${totalPairs}</span></div>
+        </div>
+        <div class="matching-game-container">
+            <div class="term-column chinese-terms">
+                ${chineseTerms.map(term => 
+                    `<div class="term chinese-term" data-id="${term.id}" data-type="chinese">${term.text}</div>`
+                ).join('')}
+            </div>
+            <div class="term-column english-terms">
+                ${englishTerms.map(term => 
+                    `<div class="term english-term" data-id="${term.id}" data-type="english">${term.text}</div>`
+                ).join('')}
+            </div>
+        </div>
+        <div class="matching-controls">
+            <button id="matchingBackBtn">返回</button>
+        </div>
+    `;
+    
+    matchingGameArea.innerHTML = gameHTML;
+    
+    // 添加事件监听器
+    document.querySelectorAll('.term').forEach(term => {
+        term.addEventListener('click', handleTermClick);
+    });
+    
+    document.getElementById('matchingBackBtn').addEventListener('click', () => {
+        isMatchingGameActive = false;
+        matchingGameArea.classList.add('hidden');
+        resetApp();
+    });
+}
+
+// 随机打乱数组顺序的辅助函数
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// 处理单词连连看中的点击事件
+function handleTermClick(event) {
+    if (!isMatchingGameActive) return;
+    
+    const clickedTerm = event.currentTarget;
+    
+    // 如果已经匹配过则忽略
+    if (clickedTerm.classList.contains('matched')) {
+        return;
+    }
+    
+    // 如果是第一次选择
+    if (!selectedTerm) {
+        selectedTerm = clickedTerm;
+        selectedTerm.classList.add('selected');
+        return;
+    }
+    
+    // 如果点击了已选中的元素，取消选择
+    if (selectedTerm === clickedTerm) {
+        selectedTerm.classList.remove('selected');
+        selectedTerm = null;
+        return;
+    }
+    
+    // 检查是否是同一类型(中文或英文)
+    if (selectedTerm.dataset.type === clickedTerm.dataset.type) {
+        selectedTerm.classList.remove('selected');
+        selectedTerm = clickedTerm;
+        selectedTerm.classList.add('selected');
+        return;
+    }
+    
+    // 检查匹配是否正确
+    if (selectedTerm.dataset.id === clickedTerm.dataset.id) {
+        // 匹配成功
+        selectedTerm.classList.remove('selected');
+        selectedTerm.classList.add('matched');
+        clickedTerm.classList.add('matched');
+        
+        // 播放成功动画
+        animateMatchSuccess(selectedTerm, clickedTerm);
+        
+        selectedTerm = null;
+        matchedPairs++;
+        
+        // 更新进度
+        document.getElementById('matchProgress').textContent = `${matchedPairs}/${totalPairs}`;
+        
+        // 检查游戏是否完成
+        if (matchedPairs === totalPairs) {
+            setTimeout(() => {
+                endMatchingGame();
+            }, 1000);
+        }
+    } else {
+        // 匹配失败
+        const term1 = selectedTerm;
+        const term2 = clickedTerm;
+        
+        term1.classList.add('error');
+        term2.classList.add('error');
+        
+        setTimeout(() => {
+            term1.classList.remove('selected', 'error');
+            term2.classList.remove('error');
+            selectedTerm = null;
+        }, 1000);
+    }
+}
+
+// 成功匹配动画
+function animateMatchSuccess(term1, term2) {
+    term1.classList.add('match-success');
+    term2.classList.add('match-success');
+    
+    setTimeout(() => {
+        term1.classList.remove('match-success');
+        term2.classList.remove('match-success');
+    }, 1000);
+}
+
+// 结束连连看游戏
+function endMatchingGame() {
+    // 结束计时
+    endTime = new Date();
+    const totalSeconds = Math.floor((endTime - startTime) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    
+    // 显示结果
+    const matchingGameArea = document.getElementById('matchingGameArea');
+    matchingGameArea.innerHTML = `
+        <div class="matching-result">
+            <h3>单词连连看完成!</h3>
+            <p>总用时: ${minutes}分${seconds}秒</p>
+            <p>匹配单词对数: ${totalPairs}</p>
+            <div class="matching-controls">
+                <button id="playAgainBtn">再玩一次</button>
+                <button id="matchingBackBtn">返回主菜单</button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('playAgainBtn').addEventListener('click', startWordMatchingGame);
+    document.getElementById('matchingBackBtn').addEventListener('click', () => {
+        isMatchingGameActive = false;
+        matchingGameArea.classList.add('hidden');
+        resetApp();
+    });
+}
+
+// 修改模式选择下拉框，添加单词连连看选项
+// 在HTML中添加:
+// <option value="matching">单词连连看</option>
